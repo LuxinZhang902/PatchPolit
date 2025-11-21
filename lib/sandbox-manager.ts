@@ -1,6 +1,14 @@
-import { DebugSession } from '@/types';
 import { prisma } from './prisma';
 import { runAgent } from '@/sandbox/agent';
+
+type SessionData = {
+  id: string;
+  repoUrl: string;
+  branch: string;
+  bugDescription: string;
+  reproCommand: string;
+  skipTests: boolean;
+};
 
 /**
  * Starts a sandbox for the given session.
@@ -13,7 +21,7 @@ import { runAgent } from '@/sandbox/agent';
  * - Generating a mock sandboxId
  * - Running the agent locally in a separate process context
  */
-export async function startSandboxForSession(session: DebugSession): Promise<string> {
+export async function startSandboxForSession(session: SessionData): Promise<string> {
   try {
     // TODO: In production, replace with actual E2B SDK call:
     // const sandbox = await E2B.create({ template: 'node-agent' });
