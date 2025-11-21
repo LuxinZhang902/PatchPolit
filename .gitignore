@@ -36,7 +36,6 @@ next-env.d.ts
 # prisma
 prisma/dev.db
 prisma/dev.db-journal
-prisma/migrations
 
 # sandbox temp
 /sandbox/temp
@@ -46,5 +45,3 @@ EXAMPLES.md
 EXAMPLES_TEMPLATE.md
 GITHUB_ISSUES_SUPPORT.md
 START_HERE.md
-*.md
-

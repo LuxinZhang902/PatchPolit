@@ -45,8 +45,36 @@ export async function createPullRequestForSession(session: DebugSession): Promis
           },
         });
 
-        // Push the branch to GitHub
-        await execAsync(`git push origin patchpilot-fix`, { cwd: repoDir });
+        // Check if we need to use a fork
+        const githubUsername = process.env.GITHUB_USERNAME;
+        
+        // If pushing to someone else's repo, we need to push to our fork instead
+        let pushRemote = 'origin';
+        let prHead = 'patchpilot-fix';
+        
+        if (githubUsername && owner !== githubUsername) {
+          // Add fork as remote if it doesn't exist
+          try {
+            await execAsync(`git remote add fork https://github.com/${githubUsername}/${repo}.git`, { cwd: repoDir });
+          } catch (error) {
+            // Remote might already exist, that's okay
+          }
+          
+          pushRemote = 'fork';
+          prHead = `${githubUsername}:patchpilot-fix`;
+          
+          await prisma.debugSession.update({
+            where: { id: session.id },
+            data: {
+              logs: (session.logs || '') + 
+                `[${new Date().toISOString()}] ℹ️ Detected external repository. Will push to your fork: ${githubUsername}/${repo}\n` +
+                `[${new Date().toISOString()}] Make sure you have forked ${owner}/${repo} to ${githubUsername}/${repo}\n`,
+            },
+          });
+        }
+        
+        // Push the branch to GitHub (origin or fork)
+        await execAsync(`git push -f ${pushRemote} patchpilot-fix`, { cwd: repoDir });
 
         await prisma.debugSession.update({
           where: { id: session.id },
@@ -80,7 +108,7 @@ ${session.skipTests ? '⚠️ **Note:** Tests were skipped during patch generati
           owner,
           repo,
           title: `fix: ${session.bugDescription.substring(0, 72)}`,
-          head: 'patchpilot-fix',
+          head: prHead, // Use the correct head (with username if fork)
           base: session.branch,
           body: prBody,
         });
