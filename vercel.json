@@ -1,9 +1,6 @@
 {
-  "version": 2,
-  "name": "patchpilot",
   "buildCommand": "npm run vercel-build",
   "devCommand": "npm run dev",
   "installCommand": "npm install",
-  "framework": "nextjs",
-  "regions": ["iad1"]
+  "framework": "nextjs"
 }
