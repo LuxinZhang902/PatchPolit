@@ -40,3 +40,10 @@ prisma/migrations
 
 # sandbox temp
 /sandbox/temp
+
+# examples (contains test data)
+EXAMPLES.md
+EXAMPLES_TEMPLATE.md
+GITHUB_ISSUES_SUPPORT.md
+START_HERE.md
+

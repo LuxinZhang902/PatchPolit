@@ -19,13 +19,31 @@ export async function runAgent(payload: AgentPayload): Promise<void> {
   await fs.mkdir(workspaceDir, { recursive: true });
 
   try {
+    // Step 0: Check if bugDescription is a GitHub issue URL and fetch it
+    let processedBugDescription = bugDescription;
+    const githubIssueMatch = bugDescription.match(/https:\/\/github\.com\/([^\/]+)\/([^\/]+)\/issues\/(\d+)/);
+    
+    if (githubIssueMatch) {
+      await updateSession(sessionId, backendBaseUrl, {
+        logsAppend: `[${new Date().toISOString()}] Detected GitHub issue URL, fetching issue details...\n`,
+      });
+      
+      try {
+        processedBugDescription = await fetchGitHubIssue(githubIssueMatch[0], sessionId, backendBaseUrl);
+      } catch (error) {
+        await updateSession(sessionId, backendBaseUrl, {
+          logsAppend: `[${new Date().toISOString()}] ⚠ Failed to fetch GitHub issue, using original description\n`,
+        });
+      }
+    }
+
     // Step 1: Clone repository
     await cloneRepository(sessionId, repoUrl, branch, workspaceDir, backendBaseUrl);
 
     // Step 2: Narrow down relevant files
     const relevantFiles = await narrowRelevantFiles(
       sessionId,
-      bugDescription,
+      processedBugDescription,
       workspaceDir,
       backendBaseUrl
     );
@@ -33,14 +51,14 @@ export async function runAgent(payload: AgentPayload): Promise<void> {
     // Step 3: Query Exa for similar bugs
     const exaPatterns = await queryExaForSimilarBugs(
       sessionId,
-      bugDescription,
+      processedBugDescription,
       backendBaseUrl
     );
 
     // Step 4: Generate patch
     await generatePatch(
       sessionId,
-      bugDescription,
+      processedBugDescription,
       relevantFiles,
       exaPatterns,
       workspaceDir,
@@ -98,7 +116,7 @@ async function cloneRepository(
 
   try {
     const repoDir = path.join(workspaceDir, 'repo');
-    await execAsync(`git clone --depth 1 --branch ${branch} ${repoUrl} ${repoDir}`);
+    await execAsync(`git clone --depth 1 --branch "${branch}" "${repoUrl}" "${repoDir}"`);
     
     await updateSession(sessionId, backendBaseUrl, {
       logsAppend: `[${new Date().toISOString()}] ✓ Repository cloned successfully\n`,
@@ -411,6 +429,68 @@ async function createPullRequest(
     status: 'completed',
     prUrl,
   });
+}
+
+/**
+ * Helper: Fetch GitHub issue details
+ */
+async function fetchGitHubIssue(
+  issueUrl: string,
+  sessionId: string,
+  backendBaseUrl: string
+): Promise<string> {
+  await updateSession(sessionId, backendBaseUrl, {
+    logsAppend: `[${new Date().toISOString()}] Fetching GitHub issue: ${issueUrl}\n`,
+  });
+
+  try {
+    // Extract owner, repo, and issue number from URL
+    const match = issueUrl.match(/https:\/\/github\.com\/([^\/]+)\/([^\/]+)\/issues\/(\d+)/);
+    if (!match) {
+      throw new Error('Invalid GitHub issue URL');
+    }
+
+    const [, owner, repo, issueNumber] = match;
+    const apiUrl = `https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`;
+
+    const response = await fetch(apiUrl, {
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'PatchPilot-Agent',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status}`);
+    }
+
+    const issue = await response.json();
+
+    // Format the issue data into a comprehensive bug description
+    const formattedDescription = `
+GitHub Issue #${issueNumber}: ${issue.title}
+
+URL: ${issueUrl}
+
+Description:
+${issue.body || 'No description provided'}
+
+Labels: ${issue.labels.map((l: any) => l.name).join(', ') || 'None'}
+State: ${issue.state}
+Created: ${new Date(issue.created_at).toLocaleString()}
+`.trim();
+
+    await updateSession(sessionId, backendBaseUrl, {
+      logsAppend: `[${new Date().toISOString()}] ✓ Successfully fetched GitHub issue #${issueNumber}\n`,
+    });
+
+    return formattedDescription;
+  } catch (error) {
+    await updateSession(sessionId, backendBaseUrl, {
+      logsAppend: `[${new Date().toISOString()}] ✗ Failed to fetch GitHub issue: ${error}\n`,
+    });
+    throw error;
+  }
 }
 
 /**

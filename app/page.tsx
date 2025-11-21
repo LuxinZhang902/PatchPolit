@@ -125,13 +125,13 @@ export default function Home() {
                 htmlFor="bugDescription"
                 className="block text-sm font-semibold text-slate-300 mb-2"
               >
-                Bug Description / Stack Trace *
+                Bug Description / Stack Trace / GitHub Issue URL *
               </label>
               <textarea
                 id="bugDescription"
                 required
                 rows={6}
-                placeholder="TypeError: Cannot read property 'name' of undefined&#10;at getUserName (src/user.js:42)&#10;&#10;Paste your error messages or stack traces here..."
+                placeholder="Option 1 - GitHub Issue URL:&#10;https://github.com/vercel/next.js/issues/86390&#10;&#10;Option 2 - Direct Description:&#10;TypeError: Cannot read property 'name' of undefined&#10;at getUserName (src/user.js:42)"
                 value={formData.bugDescription}
                 onChange={(e) =>
                   setFormData({ ...formData, bugDescription: e.target.value })
@@ -139,8 +139,7 @@ export default function Home() {
                 className="w-full px-4 py-3.5 bg-slate-800/50 text-white placeholder-slate-500 border border-slate-700 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200 hover:border-slate-600 resize-none font-mono text-sm"
               />
               <p className="mt-2 text-xs text-slate-500">
-                Include error types, file paths, and line numbers for best
-                results
+                Paste a GitHub issue URL or describe the bug directly with error types, file paths, and line numbers
               </p>
             </div>
 
