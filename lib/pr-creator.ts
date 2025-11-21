@@ -1,4 +1,3 @@
-import { DebugSession } from '@/types';
 import { prisma } from './prisma';
 import * as path from 'path';
 import * as fs from 'fs/promises';
@@ -8,10 +7,20 @@ import { promisify } from 'util';
 
 const execAsync = promisify(exec);
 
+type SessionData = {
+  id: string;
+  repoUrl: string;
+  branch: string;
+  bugDescription: string;
+  reproCommand: string;
+  skipTests: boolean;
+  logs: string | null;
+};
+
 /**
  * Creates a pull request for a completed session
  */
-export async function createPullRequestForSession(session: DebugSession): Promise<void> {
+export async function createPullRequestForSession(session: SessionData): Promise<void> {
   const backendBaseUrl = process.env.BACKEND_BASE_URL || 'http://localhost:3000';
   const workspaceDir = path.join(process.cwd(), 'sandbox', 'temp', session.id);
 
