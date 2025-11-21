@@ -1,0 +1,27 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model DebugSession {
+  id             String   @id @default(uuid())
+  repoUrl        String
+  branch         String   @default("main")
+  bugDescription String
+  reproCommand   String
+  status         String   @default("pending") // 'pending' | 'running' | 'patch_found' | 'tests_running' | 'completed' | 'failed'
+  sandboxId      String?
+  patchDiff      String?
+  logs           String?
+  prUrl          String?
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
