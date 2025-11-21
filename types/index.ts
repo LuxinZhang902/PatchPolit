@@ -6,11 +6,21 @@ export type SessionStatus =
   | 'completed' 
   | 'failed';
 
+export type CurrentStep = 
+  | 'cloning' 
+  | 'installing' 
+  | 'analyzing' 
+  | 'querying' 
+  | 'patching' 
+  | 'testing' 
+  | 'creating_pr';
+
 export interface CreateSessionRequest {
   repoUrl: string;
   branch?: string;
   bugDescription: string;
   reproCommand: string;
+  skipTests?: boolean;
 }
 
 export interface CreateSessionResponse {
@@ -19,6 +29,7 @@ export interface CreateSessionResponse {
 
 export interface UpdateSessionRequest {
   status?: SessionStatus;
+  currentStep?: CurrentStep | null;
   logsAppend?: string;
   patchDiff?: string;
   prUrl?: string;
@@ -31,7 +42,9 @@ export interface DebugSession {
   branch: string;
   bugDescription: string;
   reproCommand: string;
+  skipTests: boolean;
   status: SessionStatus;
+  currentStep: CurrentStep | null;
   sandboxId: string | null;
   patchDiff: string | null;
   logs: string | null;
@@ -47,5 +60,6 @@ export interface AgentPayload {
   branch: string;
   bugDescription: string;
   reproCommand: string;
+  skipTests: boolean;
   backendBaseUrl: string;
 }

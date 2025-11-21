@@ -16,7 +16,9 @@ model DebugSession {
   branch         String   @default("main")
   bugDescription String
   reproCommand   String
+  skipTests      Boolean  @default(false)
   status         String   @default("pending") // 'pending' | 'running' | 'patch_found' | 'tests_running' | 'completed' | 'failed'
+  currentStep    String?  // 'cloning' | 'installing' | 'analyzing' | 'querying' | 'patching' | 'testing' | 'creating_pr'
   sandboxId      String?
   patchDiff      String?
   logs           String?

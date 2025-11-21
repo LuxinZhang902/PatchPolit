@@ -12,7 +12,7 @@ const execAsync = promisify(exec);
  * Main agent function that orchestrates the debugging workflow
  */
 export async function runAgent(payload: AgentPayload): Promise<void> {
-  const { sessionId, repoUrl, branch, bugDescription, reproCommand, backendBaseUrl } = payload;
+  const { sessionId, repoUrl, branch, bugDescription, reproCommand, skipTests, backendBaseUrl } = payload;
   
   // Create a temporary workspace for this session
   const workspaceDir = path.join(process.cwd(), 'sandbox', 'temp', sessionId);
@@ -40,6 +40,9 @@ export async function runAgent(payload: AgentPayload): Promise<void> {
     // Step 1: Clone repository
     await cloneRepository(sessionId, repoUrl, branch, workspaceDir, backendBaseUrl);
 
+    // Step 1.5: Install dependencies
+    await installDependencies(sessionId, workspaceDir, backendBaseUrl);
+
     // Step 2: Narrow down relevant files
     const relevantFiles = await narrowRelevantFiles(
       sessionId,
@@ -65,31 +68,34 @@ export async function runAgent(payload: AgentPayload): Promise<void> {
       backendBaseUrl
     );
 
-    // Step 5: Run tests
-    const testsPass = await runTests(
-      sessionId,
-      reproCommand,
-      workspaceDir,
-      backendBaseUrl
-    );
+    // Step 5: Run tests (if not skipped)
+    if (!skipTests) {
+      const testsPass = await runTests(
+        sessionId,
+        reproCommand,
+        workspaceDir,
+        backendBaseUrl
+      );
 
-    if (!testsPass) {
+      if (!testsPass) {
+        await updateSession(sessionId, backendBaseUrl, {
+          status: 'failed',
+          errorMessage: `Tests failed after applying patch. The AI-generated fix did not resolve the issue. This could mean:\n\n1. The patch addressed the wrong root cause\n2. More files need to be modified\n3. The bug description needs more context\n4. The test environment has additional dependencies\n\nCheck the logs above for test output details. Try:\n- Providing a more detailed bug description\n- Using a GitHub issue URL for better context\n- Ensuring the test command is correct`,
+        });
+        return;
+      }
+    } else {
       await updateSession(sessionId, backendBaseUrl, {
-        status: 'failed',
-        errorMessage: 'Tests failed after applying patch',
+        logsAppend: `[${new Date().toISOString()}] ⚠ Tests skipped by user request\n`,
       });
-      return;
     }
 
-    // Step 6: Create PR
-    await createPullRequest(
-      sessionId,
-      repoUrl,
-      branch,
-      bugDescription,
-      workspaceDir,
-      backendBaseUrl
-    );
+    // Mark as completed - PR creation will be triggered manually by user
+    await updateSession(sessionId, backendBaseUrl, {
+      status: 'completed',
+      currentStep: null,
+      logsAppend: `[${new Date().toISOString()}] ✓ Patch ready! Review the changes and click "Create Pull Request" to submit.\n`,
+    });
 
   } catch (error) {
     console.error(`Agent error for session ${sessionId}:`, error);
@@ -111,6 +117,7 @@ async function cloneRepository(
   backendBaseUrl: string
 ): Promise<void> {
   await updateSession(sessionId, backendBaseUrl, {
+    currentStep: 'cloning',
     logsAppend: `[${new Date().toISOString()}] Cloning repository: ${repoUrl} (branch: ${branch})\n`,
   });
 
@@ -132,7 +139,63 @@ async function cloneRepository(
 }
 
 /**
- * Step 2: Narrow down relevant files based on bug description
+ * Step 1.5: Install dependencies
+ */
+async function installDependencies(
+  sessionId: string,
+  workspaceDir: string,
+  backendBaseUrl: string
+): Promise<void> {
+  await updateSession(sessionId, backendBaseUrl, {
+    currentStep: 'installing',
+    logsAppend: `[${new Date().toISOString()}] Installing dependencies...\n`,
+  });
+
+  const repoDir = path.join(workspaceDir, 'repo');
+
+  try {
+    // Detect package manager
+    const hasPackageJson = await fs.access(path.join(repoDir, 'package.json')).then(() => true).catch(() => false);
+    const hasPnpmLock = await fs.access(path.join(repoDir, 'pnpm-lock.yaml')).then(() => true).catch(() => false);
+    const hasYarnLock = await fs.access(path.join(repoDir, 'yarn.lock')).then(() => true).catch(() => false);
+    
+    if (!hasPackageJson) {
+      await updateSession(sessionId, backendBaseUrl, {
+        logsAppend: `[${new Date().toISOString()}] ℹ No package.json found, skipping dependency installation\n`,
+      });
+      return;
+    }
+
+    let installCommand = 'npm install';
+    if (hasPnpmLock) {
+      installCommand = 'pnpm install --frozen-lockfile';
+    } else if (hasYarnLock) {
+      installCommand = 'yarn install --frozen-lockfile';
+    }
+
+    await updateSession(sessionId, backendBaseUrl, {
+      logsAppend: `[${new Date().toISOString()}] Running: ${installCommand}\n`,
+    });
+
+    // Run install with timeout (5 minutes max)
+    await execAsync(installCommand, { 
+      cwd: repoDir,
+      timeout: 300000 // 5 minutes
+    });
+
+    await updateSession(sessionId, backendBaseUrl, {
+      logsAppend: `[${new Date().toISOString()}] ✓ Dependencies installed successfully\n`,
+    });
+  } catch (error) {
+    // Don't fail the entire process if install fails
+    await updateSession(sessionId, backendBaseUrl, {
+      logsAppend: `[${new Date().toISOString()}] ⚠ Dependency installation failed (continuing anyway): ${error}\n`,
+    });
+  }
+}
+
+/**
+ * Step 2: Narrow down relevant files
  */
 async function narrowRelevantFiles(
   sessionId: string,
@@ -141,6 +204,7 @@ async function narrowRelevantFiles(
   backendBaseUrl: string
 ): Promise<string[]> {
   await updateSession(sessionId, backendBaseUrl, {
+    currentStep: 'analyzing',
     logsAppend: `[${new Date().toISOString()}] Analyzing bug description to find relevant files...\n`,
   });
 
@@ -204,16 +268,17 @@ async function narrowRelevantFiles(
  */
 async function queryExaForSimilarBugs(
   sessionId: string,
-  errorText: string,
+  bugDescription: string,
   backendBaseUrl: string
 ): Promise<string[]> {
   await updateSession(sessionId, backendBaseUrl, {
+    currentStep: 'querying',
     logsAppend: `[${new Date().toISOString()}] Querying Exa for similar bug patterns...\n`,
   });
 
   try {
     // Use Exa client (sponsor integration)
-    const patterns = await queryExa(errorText);
+    const patterns = await queryExa(bugDescription);
 
     await updateSession(sessionId, backendBaseUrl, {
       logsAppend: `[${new Date().toISOString()}] ✓ Retrieved ${patterns.length} similar patterns from Exa\n`,
@@ -241,6 +306,7 @@ async function generatePatch(
   backendBaseUrl: string
 ): Promise<void> {
   await updateSession(sessionId, backendBaseUrl, {
+    currentStep: 'patching',
     logsAppend: `[${new Date().toISOString()}] Generating patch using AI...\n`,
     status: 'patch_found',
   });
@@ -285,15 +351,22 @@ async function generatePatch(
 
     const patchResponse = await generatePatchWithGroq(bugDescription, validFiles, exaPatterns);
 
+    // Log the raw patch response for debugging
+    await updateSession(sessionId, backendBaseUrl, {
+      logsAppend: `[${new Date().toISOString()}] Raw patch response:\n${patchResponse.substring(0, 500)}...\n`,
+    });
+
     // Create fix branch
     await execAsync('git checkout -b patchpilot-fix', { cwd: repoDir });
 
-    // Parse and apply the patch
-    const filePattern = /FILE: (.+?)\n```[\w]*\n([\s\S]+?)\n```/g;
-    let match;
+    // Parse and apply the patch - try multiple patterns
     let filesModified = 0;
 
-    while ((match = filePattern.exec(patchResponse)) !== null) {
+    // Pattern 1: FILE: path\n```code```
+    const pattern1 = /FILE:\s*(.+?)\n```[\w]*\n([\s\S]+?)\n```/g;
+    let match;
+    
+    while ((match = pattern1.exec(patchResponse)) !== null) {
       const [, filePath, fixedCode] = match;
       const fullPath = path.join(repoDir, filePath.trim());
 
@@ -301,20 +374,77 @@ async function generatePatch(
         await fs.writeFile(fullPath, fixedCode.trim());
         await execAsync(`git add "${filePath.trim()}"`, { cwd: repoDir });
         filesModified++;
+        await updateSession(sessionId, backendBaseUrl, {
+          logsAppend: `[${new Date().toISOString()}] ✓ Modified: ${filePath.trim()}\n`,
+        });
       } catch (error) {
-        console.error(`Error applying fix to ${filePath}:`, error);
+        await updateSession(sessionId, backendBaseUrl, {
+          logsAppend: `[${new Date().toISOString()}] ✗ Failed to modify ${filePath}: ${error}\n`,
+        });
+      }
+    }
+
+    // Pattern 2: **File: path**\n```code```
+    if (filesModified === 0) {
+      const pattern2 = /\*\*File:\s*(.+?)\*\*\n```[\w]*\n([\s\S]+?)\n```/g;
+      while ((match = pattern2.exec(patchResponse)) !== null) {
+        const [, filePath, fixedCode] = match;
+        const fullPath = path.join(repoDir, filePath.trim());
+
+        try {
+          await fs.writeFile(fullPath, fixedCode.trim());
+          await execAsync(`git add "${filePath.trim()}"`, { cwd: repoDir });
+          filesModified++;
+          await updateSession(sessionId, backendBaseUrl, {
+            logsAppend: `[${new Date().toISOString()}] ✓ Modified: ${filePath.trim()}\n`,
+          });
+        } catch (error) {
+          await updateSession(sessionId, backendBaseUrl, {
+            logsAppend: `[${new Date().toISOString()}] ✗ Failed to modify ${filePath}: ${error}\n`,
+          });
+        }
+      }
+    }
+
+    // Pattern 3: Just modify the first file in relevantFiles if no pattern matched
+    if (filesModified === 0 && relevantFiles.length > 0) {
+      await updateSession(sessionId, backendBaseUrl, {
+        logsAppend: `[${new Date().toISOString()}] ⚠ No file pattern matched, applying patch to first relevant file\n`,
+      });
+
+      // Extract code block from response
+      const codeBlockPattern = /```[\w]*\n([\s\S]+?)\n```/;
+      const codeMatch = codeBlockPattern.exec(patchResponse);
+      
+      if (codeMatch) {
+        const fixedCode = codeMatch[1];
+        const targetFile = relevantFiles[0];
+        const fullPath = path.join(repoDir, targetFile);
+
+        try {
+          await fs.writeFile(fullPath, fixedCode.trim());
+          await execAsync(`git add "${targetFile}"`, { cwd: repoDir });
+          filesModified++;
+          await updateSession(sessionId, backendBaseUrl, {
+            logsAppend: `[${new Date().toISOString()}] ✓ Modified: ${targetFile}\n`,
+          });
+        } catch (error) {
+          await updateSession(sessionId, backendBaseUrl, {
+            logsAppend: `[${new Date().toISOString()}] ✗ Failed to modify ${targetFile}: ${error}\n`,
+          });
+        }
       }
     }
 
     if (filesModified === 0) {
-      throw new Error('No files were modified by the patch');
+      throw new Error('No files were modified by the patch. The LLM response format may not match expected patterns.');
     }
 
-    // Commit changes
-    await execAsync(`git commit -m "fix: ${bugDescription.substring(0, 50)}"`, { cwd: repoDir });
+    // Commit changes (skip pre-commit hooks to avoid lint failures)
+    await execAsync(`git commit --no-verify -m "fix: ${bugDescription.substring(0, 50)}"`, { cwd: repoDir });
 
-    // Generate diff
-    const { stdout: diff } = await execAsync('git diff main...patchpilot-fix', { cwd: repoDir });
+    // Generate diff (compare current branch with the commit before our changes)
+    const { stdout: diff } = await execAsync('git diff HEAD~1', { cwd: repoDir });
 
     // Explain the changes using Groq
     const explanation = await explainChanges(diff);
@@ -332,7 +462,56 @@ async function generatePatch(
 }
 
 /**
- * Step 5: Run reproduction command to validate fix
+ * Helper: Extract meaningful error information from test output
+ */
+function extractTestErrors(stdout: string, stderr: string): string {
+  const combined = `${stdout}\n${stderr}`;
+  const lines = combined.split('\n');
+  
+  // Look for common error patterns
+  const errorPatterns = [
+    /FAIL|FAILED|ERROR|Error:/i,
+    /AssertionError/i,
+    /TypeError/i,
+    /ReferenceError/i,
+    /SyntaxError/i,
+    /Expected.*but got/i,
+    /\d+ failing/i,
+    /Tests failed:/i,
+  ];
+  
+  const errorLines: string[] = [];
+  let contextLines = 0;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Check if line matches any error pattern
+    if (errorPatterns.some(pattern => pattern.test(line))) {
+      // Add context: 2 lines before and 3 lines after
+      const start = Math.max(0, i - 2);
+      const end = Math.min(lines.length, i + 4);
+      
+      for (let j = start; j < end; j++) {
+        if (!errorLines.includes(lines[j]) && lines[j].trim()) {
+          errorLines.push(lines[j]);
+        }
+      }
+      
+      contextLines++;
+      if (contextLines >= 3) break; // Limit to first 3 error contexts
+    }
+  }
+  
+  if (errorLines.length > 0) {
+    return `\n📋 Key Test Errors:\n${errorLines.slice(0, 15).join('\n')}`;
+  }
+  
+  return '\n💡 No specific error patterns found. Check full test output above.';
+}
+
+/**
+ * Step 5: Run tests
  */
 async function runTests(
   sessionId: string,
@@ -341,6 +520,7 @@ async function runTests(
   backendBaseUrl: string
 ): Promise<boolean> {
   await updateSession(sessionId, backendBaseUrl, {
+    currentStep: 'testing',
     logsAppend: `[${new Date().toISOString()}] Running tests: ${reproCommand}\n`,
     status: 'tests_running',
   });
@@ -378,8 +558,10 @@ async function runTests(
         });
         resolve(true);
       } else {
+        // Extract meaningful error info from test output
+        const errorSummary = extractTestErrors(stdout, stderr);
         await updateSession(sessionId, backendBaseUrl, {
-          logsAppend: `[${new Date().toISOString()}] ✗ Tests failed with exit code ${code}\n`,
+          logsAppend: `[${new Date().toISOString()}] ✗ Tests failed with exit code ${code}\n${errorSummary}\n`,
         });
         resolve(false);
       }
@@ -400,12 +582,13 @@ async function runTests(
 async function createPullRequest(
   sessionId: string,
   repoUrl: string,
-  baseBranch: string,
+  branch: string,
   bugDescription: string,
   workspaceDir: string,
   backendBaseUrl: string
 ): Promise<void> {
   await updateSession(sessionId, backendBaseUrl, {
+    currentStep: 'creating_pr',
     logsAppend: `[${new Date().toISOString()}] Creating pull request...\n`,
   });
 

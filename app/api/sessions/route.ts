@@ -3,6 +3,25 @@ import { prisma } from '@/lib/prisma';
 import { CreateSessionRequest, CreateSessionResponse } from '@/types';
 import { startSandboxForSession } from '@/lib/sandbox-manager';
 
+export async function GET(request: NextRequest) {
+  try {
+    // Get all sessions ordered by most recent first
+    const sessions = await prisma.debugSession.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return NextResponse.json({ sessions }, { status: 200 });
+  } catch (error) {
+    console.error('Error fetching sessions:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body: CreateSessionRequest = await request.json();
@@ -31,6 +50,7 @@ export async function POST(request: NextRequest) {
         branch: body.branch || 'main',
         bugDescription: body.bugDescription,
         reproCommand: body.reproCommand,
+        skipTests: body.skipTests || false,
         status: 'pending',
       },
     });

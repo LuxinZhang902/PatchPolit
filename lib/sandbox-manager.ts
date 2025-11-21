@@ -40,6 +40,7 @@ export async function startSandboxForSession(session: DebugSession): Promise<str
       branch: session.branch,
       bugDescription: session.bugDescription,
       reproCommand: session.reproCommand,
+      skipTests: session.skipTests,
       backendBaseUrl,
     };
 

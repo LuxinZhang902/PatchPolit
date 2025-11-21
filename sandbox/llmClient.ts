@@ -74,7 +74,7 @@ export async function callGroqChat(
     });
 
     const requestBody: GroqChatRequest = {
-      model: 'llama-3.1-70b-versatile', // Groq's fast, capable model
+      model: 'llama-3.3-70b-versatile', // Groq's latest fast, capable model
       messages,
       temperature: 0.1, // Low temperature for consistent, focused responses
       max_tokens: 4096,
