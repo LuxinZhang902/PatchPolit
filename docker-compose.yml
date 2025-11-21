@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  patchpilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - BACKEND_BASE_URL=http://localhost:3000
+      - DATABASE_URL=file:./dev.db
+      - EXA_API_KEY=${EXA_API_KEY}
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    volumes:
+      # Persist database
+      - ./prisma/dev.db:/app/prisma/dev.db
+      # Persist sandbox temp files
+      - ./sandbox/temp:/app/sandbox/temp
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s

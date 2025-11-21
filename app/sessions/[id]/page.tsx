@@ -85,14 +85,36 @@ export default function SessionPage() {
       if (!response.ok) {
         const data = await response.json();
         alert(data.error || 'Failed to create pull request');
+        setCreatingPR(false);
       } else {
-        // Refresh session data
-        mutate();
+        // PR creation started - poll for updates
+        // Keep button in loading state and let polling detect the PR URL
+        // The button will automatically hide when prUrl is updated
+        let pollCount = 0;
+        const maxPolls = 30; // Poll for up to 60 seconds (30 * 2s)
+        
+        const pollInterval = setInterval(async () => {
+          pollCount++;
+          
+          // Refresh session data
+          await mutate();
+          
+          // Check if PR URL was updated or if we've polled enough
+          const updatedSession = await fetch(`/api/sessions/${sessionId}`).then(r => r.json());
+          
+          if (updatedSession.prUrl?.includes('/pull/') || pollCount >= maxPolls) {
+            clearInterval(pollInterval);
+            setCreatingPR(false);
+            
+            if (pollCount >= maxPolls && !updatedSession.prUrl?.includes('/pull/')) {
+              alert('PR creation is taking longer than expected. Check the logs for details.');
+            }
+          }
+        }, 2000); // Poll every 2 seconds
       }
     } catch (error) {
       console.error('Error creating PR:', error);
       alert('Failed to create pull request');
-    } finally {
       setCreatingPR(false);
     }
   };

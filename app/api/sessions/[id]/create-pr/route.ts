@@ -29,12 +29,17 @@ export async function POST(
       );
     }
 
-    // Check if PR already created
-    if (session.prUrl) {
+    // Check if real PR already created (not just a compare URL)
+    if (session.prUrl && session.prUrl.includes('/pull/')) {
       return NextResponse.json(
         { error: 'Pull request already created', prUrl: session.prUrl },
         { status: 400 }
       );
+    }
+    
+    // If it's just a compare URL, allow re-creation (user might have added GITHUB_TOKEN)
+    if (session.prUrl && session.prUrl.includes('/compare/')) {
+      console.log(`Re-attempting PR creation for session ${sessionId} (previous attempt was compare URL only)`);
     }
 
     // Create PR asynchronously

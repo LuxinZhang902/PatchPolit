@@ -5,6 +5,7 @@ Welcome to **PatchPilot** - your autonomous debugging agent!
 ## 📋 What You Have
 
 A **complete, production-ready MVP** with:
+
 - ✅ Beautiful Next.js frontend with real-time updates
 - ✅ Robust backend API with TypeScript
 - ✅ Intelligent agent with 6-step debugging workflow
@@ -17,13 +18,16 @@ A **complete, production-ready MVP** with:
 ## ⚡ Quick Start (Choose One)
 
 ### Option 1: Automated Setup (Recommended)
+
 ```bash
 chmod +x setup.sh && ./setup.sh
 npm run dev
 ```
+
 Open http://localhost:3000
 
 ### Option 2: Manual Setup
+
 ```bash
 npm install
 cp .env.example .env
@@ -31,24 +35,26 @@ npx prisma generate
 npx prisma migrate dev --name init
 npm run dev
 ```
+
 Open http://localhost:3000
 
 ## 📚 Documentation Guide
 
-| File | Purpose | When to Read |
-|------|---------|--------------|
-| **CHECKLIST.md** | Quick setup steps | Start here for setup |
-| **QUICKSTART.md** | 5-min getting started | After setup, before demo |
-| **SPONSOR_INTEGRATIONS.md** | Exa & Groq setup ⭐ | Setting up API keys |
-| **README.md** | Complete overview | Understanding the project |
-| **ARCHITECTURE.md** | Technical deep dive | Understanding code structure |
-| **INTEGRATION_GUIDE.md** | How to add E2B/MCP | Adding real integrations |
-| **PROJECT_SUMMARY.md** | What's built & status | Project overview |
-| **DEMO_SCRIPT.md** | Presentation guide | Before hackathon demo |
+| File                        | Purpose               | When to Read                 |
+| --------------------------- | --------------------- | ---------------------------- |
+| **CHECKLIST.md**            | Quick setup steps     | Start here for setup         |
+| **QUICKSTART.md**           | 5-min getting started | After setup, before demo     |
+| **SPONSOR_INTEGRATIONS.md** | Exa & Groq setup ⭐   | Setting up API keys          |
+| **README.md**               | Complete overview     | Understanding the project    |
+| **ARCHITECTURE.md**         | Technical deep dive   | Understanding code structure |
+| **INTEGRATION_GUIDE.md**    | How to add E2B/MCP    | Adding real integrations     |
+| **PROJECT_SUMMARY.md**      | What's built & status | Project overview             |
+| **DEMO_SCRIPT.md**          | Presentation guide    | Before hackathon demo        |
 
 ## 🎯 Your Next Steps
 
 ### For Immediate Demo (Hackathon)
+
 1. ✅ Run setup (see above)
 2. ✅ Read `QUICKSTART.md` (5 min)
 3. ✅ Test the app once
@@ -56,6 +62,7 @@ Open http://localhost:3000
 5. ✅ Practice your presentation
 
 ### For Production (Post-Hackathon)
+
 1. Read `INTEGRATION_GUIDE.md`
 2. Get API keys (E2B, Anthropic/OpenAI, Exa, GitHub)
 3. Integrate services one by one
@@ -123,18 +130,21 @@ rm -rf node_modules && npm install         # Clean install
 ## 🎨 What Makes This Special
 
 ### Technical Excellence
+
 - **TypeScript throughout** - Type-safe, maintainable
 - **Clean architecture** - Separation of concerns
 - **Error handling** - Comprehensive try-catch
 - **Real-time updates** - SWR polling every 2s
 
 ### Developer Experience
+
 - **One-command setup** - `./setup.sh`
 - **Clear TODOs** - Every integration point marked
 - **Comprehensive docs** - 7 detailed guides
 - **Mock implementations** - Demo without external deps
 
 ### Production Ready
+
 - **Database migrations** - Prisma schema versioning
 - **Environment variables** - Secure config
 - **Logging** - Ready for structured logging
@@ -142,28 +152,31 @@ rm -rf node_modules && npm install         # Clean install
 
 ## 🚨 Common Issues & Fixes
 
-| Issue | Solution |
-|-------|----------|
-| Port 3000 in use | `lsof -ti:3000 \| xargs kill -9` |
-| Database locked | `rm prisma/dev.db && npx prisma migrate dev` |
-| Module not found | `rm -rf node_modules && npm install` |
-| Prisma errors | `npx prisma generate` |
+| Issue            | Solution                                     |
+| ---------------- | -------------------------------------------- |
+| Port 3000 in use | `lsof -ti:3000 \| xargs kill -9`             |
+| Database locked  | `rm prisma/dev.db && npx prisma migrate dev` |
+| Module not found | `rm -rf node_modules && npm install`         |
+| Prisma errors    | `npx prisma generate`                        |
 
 ## 🎓 Learning Path
 
 ### Beginner
+
 1. Run the app
 2. Create a test session
 3. Read `README.md`
 4. Explore the UI code
 
 ### Intermediate
+
 1. Read `ARCHITECTURE.md`
 2. Understand the agent workflow
 3. Modify `sandbox/agent.ts`
 4. Add a new API endpoint
 
 ### Advanced
+
 1. Read `INTEGRATION_GUIDE.md`
 2. Integrate E2B sandbox
 3. Add real LLM (Claude/GPT-4)
@@ -181,6 +194,7 @@ rm -rf node_modules && npm install         # Clean install
 ## 🎯 Success Metrics
 
 ### For Hackathon
+
 - ✅ Working demo
 - ✅ Impressive UI
 - ✅ Clear value proposition
@@ -188,6 +202,7 @@ rm -rf node_modules && npm install         # Clean install
 - ✅ Clean code
 
 ### For Production
+
 - [ ] All integrations complete
 - [ ] 60%+ fix success rate
 - [ ] < 5 min average session time
@@ -228,8 +243,14 @@ npm run dev
 
 Then open http://localhost:3000 and start debugging! 🚀
 
+## Check DB
+
+```bash
+npx prisma studio
+```
+
 ---
 
 **Built with ❤️ for autonomous debugging**
 
-*Questions? Check the docs. Still stuck? Review the code comments.*
+_Questions? Check the docs. Still stuck? Review the code comments._

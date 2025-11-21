@@ -122,6 +122,23 @@ PatchPilot/
 6. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
 
+### 🐳 Quick Start with Docker
+
+```bash
+# Make script executable
+chmod +x docker-start.sh
+
+# Run Docker setup
+./docker-start.sh
+```
+
+Or manually:
+```bash
+docker-compose up -d
+```
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions.
+
 ## 📖 Usage
 
 ### Creating a Debug Session
