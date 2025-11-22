@@ -684,6 +684,7 @@ async function updateSession(
   backendBaseUrl: string,
   updates: {
     status?: string;
+    currentStep?: string | null;
     logsAppend?: string;
     patchDiff?: string;
     prUrl?: string;
