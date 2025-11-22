@@ -315,13 +315,17 @@ All integration points are clearly marked with `TODO` comments and can be swappe
 - [ ] Implement webhook notifications
 - [ ] Add authentication and user management
 
-## 🤝 Contributing
-
-This is a hackathon MVP. Feel free to fork and extend!
-
 ## 📄 License
 
-MIT
+Copyright (c) 2025 PatchPilot Contributors. All Rights Reserved.
+
+This software is proprietary and confidential. Unauthorized copying, distribution, modification, or use of this software, via any medium, is strictly prohibited without explicit written permission from the copyright holder(s).
+
+See [LICENSE](./LICENSE) for full terms.
+
+## 🤝 Contributing
+
+This project is currently not accepting external contributions. For inquiries, please contact the project maintainers.
 
 ---
 
