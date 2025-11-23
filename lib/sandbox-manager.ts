@@ -30,8 +30,7 @@ export async function startSandboxForSession(session: SessionData): Promise<stri
     
     if (apiKey) {
       // In production, this uses a real E2B sandbox instance
-      const sandbox = await Sandbox.create({
-        template: 'base',
+      const sandbox = await Sandbox.create('base', {
         apiKey,
         timeoutMs: 300000, // 5 minutes
       });
