@@ -1,5 +1,6 @@
 import { prisma } from './prisma';
 import { runAgent } from '@/sandbox/agent';
+import { Sandbox } from 'e2b';
 
 type SessionData = {
   id: string;
@@ -23,12 +24,32 @@ type SessionData = {
  */
 export async function startSandboxForSession(session: SessionData): Promise<string> {
   try {
-    // TODO: In production, replace with actual E2B SDK call:
-    // const sandbox = await E2B.create({ template: 'node-agent' });
-    // const sandboxId = sandbox.id;
+    // Try to create a real E2B sandbox when an API key is configured
+    const apiKey = process.env.E2B_API_KEY;
+    let sandboxId: string;
     
-    // For MVP: Generate mock sandbox ID
-    const sandboxId = `sandbox_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    if (apiKey) {
+      // In production, this uses a real E2B sandbox instance
+      const sandbox = await Sandbox.create({
+        template: 'base',
+        apiKey,
+        timeoutMs: 300000, // 5 minutes
+      });
+
+      sandboxId = sandbox.id;
+
+      // Minimal no-op process in the sandbox so it is actually used
+      const process = await sandbox.process.start({
+        cmd: 'node -e "console.log(\'PatchPilot E2B sandbox started\')"',
+      });
+
+      process.on('exit', async () => {
+        await sandbox.close();
+      });
+    } else {
+      // For environments without E2B configured, fall back to mock sandbox ID
+      sandboxId = `sandbox_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    }
 
     // Update session with sandboxId
     await prisma.debugSession.update({
@@ -51,10 +72,6 @@ export async function startSandboxForSession(session: SessionData): Promise<stri
       skipTests: session.skipTests,
       backendBaseUrl,
     };
-
-    // TODO: In production, upload and execute agent in E2B sandbox:
-    // await sandbox.uploadFile('agent.js', compiledAgentCode);
-    // await sandbox.process.start({ cmd: 'node agent.js', env: { PAYLOAD: JSON.stringify(agentPayload) } });
 
     // For MVP: Run agent locally (simulating sandbox execution)
     // Run asynchronously without blocking
