@@ -35,7 +35,10 @@ export async function startSandboxForSession(session: SessionData): Promise<stri
         timeoutMs: 300000, // 5 minutes
       });
 
-      sandboxId = sandbox.id;
+      // The E2B SDK returns an object with an ID, but the current
+      // TypeScript typings don’t expose it directly on the type.
+      // Cast to any when reading the ID to satisfy the compiler.
+      sandboxId = (sandbox as any).id as string;
 
       // Minimal no-op process in the sandbox so it is actually used
       const process = await sandbox.process.start({
