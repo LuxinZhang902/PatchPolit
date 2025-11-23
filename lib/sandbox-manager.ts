@@ -38,15 +38,16 @@ export async function startSandboxForSession(session: SessionData): Promise<stri
       // The E2B SDK returns an object with an ID, but the current
       // TypeScript typings don’t expose it directly on the type.
       // Cast to any when reading the ID to satisfy the compiler.
-      sandboxId = (sandbox as any).id as string;
+      const sandboxAny = sandbox as any;
+      sandboxId = sandboxAny.id as string;
 
       // Minimal no-op process in the sandbox so it is actually used
-      const process = await sandbox.process.start({
+      const process = await sandboxAny.process.start({
         cmd: 'node -e "console.log(\'PatchPilot E2B sandbox started\')"',
       });
 
       process.on('exit', async () => {
-        await sandbox.close();
+        await sandboxAny.close();
       });
     } else {
       // For environments without E2B configured, fall back to mock sandbox ID
